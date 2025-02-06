@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       cyberchef_latest_release: ${{ steps.get-latest-release.outputs.cyberchef_latest_release }}
+      should_publish: ${{ steps.get-latest-release.outputs.should_publish }}
     steps:
       - name: Check latest release versions
         id: get-latest-release
@@ -20,15 +21,18 @@ jobs:
 
           if [ "$my_latest_release" = "$cyberchef_latest_release" ]; then
             echo "You are at the latest CyberChef release"
+            echo "should_publish=false" >> $GITHUB_ENV
             exit 0
+          else
+            echo "should_publish=true" >> $GITHUB_ENV
           fi
-          echo "name=cyberchef_latest_release" >> $cyberchef_latest_release
+          echo "cyberchef_latest_release=$cyberchef_latest_release" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          
   publish-tauri:
     needs: check-latest-release
+    if: needs.check-latest-release.outputs.should_publish == 'true'
     permissions:
       contents: write
     strategy:
