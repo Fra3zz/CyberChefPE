@@ -72,8 +72,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: 'v${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
-          releaseName: 'CyberChefPE_v${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
+          tagName: '${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
+          releaseName: 'CyberChefPE_${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: false
           prerelease: false
