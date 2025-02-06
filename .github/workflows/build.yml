@@ -22,7 +22,6 @@ jobs:
           if [ "$my_latest_release" = "$cyberchef_latest_release" ]; then
             echo "You are at the latest CyberChef release"
             echo "should_publish=false" >> $GITHUB_ENV
-            exit 0
           else
             echo "should_publish=true" >> $GITHUB_ENV
           fi
