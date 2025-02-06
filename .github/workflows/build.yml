@@ -8,30 +8,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       cyberchef_latest_release: ${{ steps.get-latest-release.outputs.cyberchef_latest_release }}
-      should_publish: ${{ steps.get-latest-release.outputs.should_publish }}
     steps:
       - name: Check latest release versions
         id: get-latest-release
         run: |
           my_latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
           echo "My latest release version: $my_latest_release"
-
           cyberchef_latest_release=$(curl -s https://api.github.com/repos/gchq/CyberChef/releases/latest | jq -r '.tag_name')
           echo "CyberChef latest release version: $cyberchef_latest_release"
-
           if [ "$my_latest_release" = "$cyberchef_latest_release" ]; then
             echo "You are at the latest CyberChef release"
-            echo "should_publish=false" >> $GITHUB_ENV
-          else
-            echo "should_publish=true" >> $GITHUB_ENV
+            exit 0
           fi
-          echo "cyberchef_latest_release=$cyberchef_latest_release" >> $GITHUB_ENV
+          echo "name=cyberchef_latest_release" >> $cyberchef_latest_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+          
   publish-tauri:
     needs: check-latest-release
-    if: needs.check-latest-release.outputs.should_publish == 'true'
     permissions:
       contents: write
     strategy:
@@ -68,7 +63,6 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: install frontend dependencies
         run: yarn install
 
