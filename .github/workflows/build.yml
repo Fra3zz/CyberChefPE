@@ -23,6 +23,25 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check latest release versions
+        id: check-latest-releases
+        run: |
+          my_latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
+          echo "My latest release version: $my_latest_release"
+
+          cyberchef_latest_release=$(curl -s https://api.github.com/repos/gchq/CyberChef/releases/latest | jq -r '.tag_name')
+          echo "CyberChef latest release version: $cyberchef_latest_release"
+
+          if [ "$my_latest_release" = "$cyberchef_latest_release" ]; then
+            echo "You are at the latest CyberChef release"
+            exit 0
+          fi
+          echo "::set-output name=cyberchef_latest_release::$cyberchef_latest_release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -37,8 +56,8 @@ jobs:
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+            sudo apt-get update
+            sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
         run: yarn install
@@ -47,8 +66,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
-          releaseName: 'CyberChef v__VERSION__'
+          tagName: 'v${{ steps.check-latest-releases.outputs.cyberchef_latest_release }}'
+          releaseName: 'CyberChefPE_v${{ steps.check-latest-releases.outputs.cyberchef_latest_release }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: false
           prerelease: false
