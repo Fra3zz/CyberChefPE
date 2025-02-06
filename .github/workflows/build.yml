@@ -22,10 +22,11 @@ jobs:
             echo "You are at the latest CyberChef release"
             exit 0
           fi
-          echo "::set-output name=cyberchef_latest_release::$cyberchef_latest_release"
+          echo "name=cyberchef_latest_release" >> $cyberchef_latest_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+          
   publish-tauri:
     needs: check-latest-release
     permissions:
