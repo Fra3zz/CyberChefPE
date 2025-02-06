@@ -28,6 +28,7 @@ jobs:
 
       - name: Check latest release versions
         id: check-latest-releases
+        shell: bash
         run: |
           my_latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
           echo "My latest release version: $my_latest_release"
