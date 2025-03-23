@@ -1,32 +1,14 @@
-name: "publish"
+name: 'publish'
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - release
+
+# This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
 
 jobs:
-  check-latest-release:
-    runs-on: ubuntu-latest
-    outputs:
-      cyberchef_latest_release: ${{ steps.get-latest-release.outputs.cyberchef_latest_release }}
-    steps:
-      - name: Check latest release versions
-        id: get-latest-release
-        run: |
-          my_latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
-          echo "My latest release version: $my_latest_release"
-          cyberchef_latest_release=$(curl -s https://api.github.com/repos/gchq/CyberChef/releases/latest | jq -r '.tag_name')
-          echo "CyberChef latest release version: $cyberchef_latest_release"
-          if [ "$my_latest_release" = "$cyberchef_latest_release" ]; then
-            echo "You are at the latest CyberChef release"
-            exit 0
-          fi
-          echo "::set-output name=cyberchef_latest_release::$cyberchef_latest_release"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-and-publish:
-    needs: check-latest-release
-    if: needs.check-latest-release.outputs.cyberchef_latest_release != ''
+  publish-tauri:
     permissions:
       contents: write
     strategy:
@@ -35,69 +17,46 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
-            artifact_name: 'CyberChefPE-macos-arm64'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-            artifact_name: 'CyberChefPE-macos-x64'
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
             args: ''
-            artifact_name: 'CyberChefPE-linux'
           - platform: 'windows-latest'
             args: ''
-            artifact_name: 'CyberChefPE-windows'
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - name: Install Rust stable
+      - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
+          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
-            sudo apt-get update
-            sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
+        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
-      - name: Install frontend dependencies
-        run: yarn install
+      - name: install frontend dependencies
+        run: yarn install # change this to npm, pnpm or bun depending on which one you use.
 
-      - name: Build the project
-        run: yarn build ${{ matrix.args }}
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ./path/to/build/output # Adjust this path to where your build outputs are located
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: '${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
-          release_name: 'CyberChefPE_${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
-          body: 'See the assets to download this version and install.'
-          draft: false
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'App v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
           prerelease: false
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./path/to/build/output # Adjust this path to where your build outputs are located
-          asset_name: ${{ matrix.artifact_name }}
-          asset_content_type: application/octet-stream
+          args: ${{ matrix.args }}
