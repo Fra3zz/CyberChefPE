@@ -1,7 +1,7 @@
 # CyberChef PE
 
 ## **Disclimer
-This is not indorsed by CyberChef nore is it official. If SOme issues are resolved (being able to compile cyberchef source code) then I may make a pull request, but until them use at your own risk. 
+This is not indorsed by CyberChef nore is it official. If Some issues are resolved (being able to compile cyberchef source code) then I may make a pull request, but until then use at your own risk. 
 
 ## Goals
 
@@ -21,7 +21,7 @@ Make sure to have node installed on your local machine.
 git clone https://github.com/Fra3zz/CyberChefPE.git
 cd CyberChefPE
 bun install # or "bun i"
-bun run tauri build #This will build for your loacl OS. npm/Deno/Yarn can be used
+bun run tauri build #This will build for your local OS. npm/Deno/Yarn can be used
 ```
 
 GitHub Actions
