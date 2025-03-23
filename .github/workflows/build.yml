@@ -24,7 +24,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-tauri:
+  build-and-publish:
     needs: check-latest-release
     if: needs.check-latest-release.outputs.cyberchef_latest_release != ''
     permissions:
@@ -35,12 +35,16 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
+            artifact_name: 'CyberChefPE-macos-arm64'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
+            artifact_name: 'CyberChefPE-macos-x64'
           - platform: 'ubuntu-22.04'
             args: ''
+            artifact_name: 'CyberChefPE-linux'
           - platform: 'windows-latest'
             args: ''
+            artifact_name: 'CyberChefPE-windows'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -48,32 +52,52 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - name: install Rust stable
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: install dependencies (ubuntu only)
+      - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
             sudo apt-get update
             sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: install frontend dependencies
+      - name: Install frontend dependencies
         run: yarn install
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build the project
+        run: yarn build ${{ matrix.args }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ./path/to/build/output # Adjust this path to where your build outputs are located
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: '${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
-          releaseName: 'CyberChefPE_${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: false
+          tag_name: '${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
+          release_name: 'CyberChefPE_${{ needs.check-latest-release.outputs.cyberchef_latest_release }}'
+          body: 'See the assets to download this version and install.'
+          draft: false
           prerelease: false
-          args: ${{ matrix.args }}
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./path/to/build/output # Adjust this path to where your build outputs are located
+          asset_name: ${{ matrix.artifact_name }}
+          asset_content_type: application/octet-stream
